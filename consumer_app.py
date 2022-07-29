@@ -30,6 +30,7 @@ class ConsumerThread:
 
     def run(self, consumer, msg_count, msg_array, metadata_array):
         try:
+            img_array2=[]
             while True:
                 msg = consumer.poll(0.5)
                 if msg == None:
@@ -60,12 +61,13 @@ class ConsumerThread:
                         labels = decode_predictions(predictions)
 
                         self.videos_map = reset_map(self.videos_map)
-                        for metadata, label in zip(metadata_array, labels):
+                        for metadata, label,image in zip(metadata_array, labels,img_array2):
                             top_label = label[0][1]
                             confidence = label[0][2]
                             confidence = confidence.item()
                             frame_no, video_name = metadata
                             doc = {
+                                "image":image,
                                 "frame": frame_no,
                                 "label": top_label,
                                 "confidence": confidence
@@ -81,6 +83,7 @@ class ConsumerThread:
                         msg_count = 0
                         metadata_array = []
                         msg_array = []
+                        img_array2=[]
 
                 elif msg.error().code() == KafkaError._PARTITION_EOF:
                     print('End of partition reached {0}/{1}'
@@ -121,7 +124,7 @@ if __name__ == "__main__":
     client = MongoClient('mongodb://localhost:27017')
     db = client['video-stream-records']
 
-    video_names = ["sixtine", "dagobert", "nicolas"]
+    video_names = ["sixtine", "nicolas", "dagobert"]
     videos_map = create_collections_unique(db, video_names)
     
     consumer_thread = ConsumerThread(consumer_config, topic, 32, model, db, videos_map)
