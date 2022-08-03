@@ -43,12 +43,29 @@ playButton.addEventListener('click', () => {
   recordedVideo.play();
 });
 
-const sendButton = document.querySelector('button#send');
-sendButton.addEventListener('click', () => {
+const trainButton = document.querySelector('button#train');
+trainButton.addEventListener('click', () => {
   const blob = new Blob(recordedBlobs, {type: 'video/webm'});
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
-  send_data(blob);
+  send_data1(blob);
+  //a.style.display = 'none';
+  //a.href = url;
+  //a.download = 'test.webm';
+  //document.body.appendChild(a);
+  //a.click();
+  //setTimeout(() => {
+  //  document.body.removeChild(a);
+  // window.URL.revokeObjectURL(url);
+  //}, 100);
+});
+
+const classifyButton = document.querySelector('button#classify');
+classifyButton.addEventListener('click', () => {
+  const blob = new Blob(recordedBlobs, {type: 'video/webm'});
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  send_data2(blob);
   //a.style.display = 'none';
   //a.href = url;
   //a.download = 'test.webm';
@@ -151,10 +168,15 @@ document.querySelector('button#start').addEventListener('click', async () => {
   console.log('Using media constraints:', constraints);
   await init(constraints);
 });
-    function send_data(mlType,img){         
+    function send_data1(mlType,img){         
         console.log([mlType,img]);
 	console.log("emitting");
-	socket.emit('send_img', {data:[mlType,img]});
+	socket.emit('train_img', {data:[mlType,img]});
+    };
+    function send_data2(mlType,img){
+        console.log([mlType,img]);
+        console.log("emitting");
+        socket.emit('classify_img', {data:[mlType,img]});
     };
     //captureButton.addEventListener('click', () => {  
       //  var drawImage = context.drawImage(player, 0, 0, canvas.width, canvas.height);
