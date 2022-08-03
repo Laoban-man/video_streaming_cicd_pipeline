@@ -9,12 +9,15 @@ $(document).ready(function(){
 
         // Successful connection message
         socket.emit('connection_msg', {data: 'I\'m connected!'});
-        console.log('connected')
-        
-    });   
+    });
+    socket.on("my_response",(arg) => {
+	const resultsText = document.querySelector('h1#results');
+	console.log(arg["data"]);
+	resultsText.textContent = arg["data"];
+    });
     
     // **** Camera Image Settings ****
-    let mediaRecorder;
+let mediaRecorder;
 let recordedBlobs;
 const codecPreferences = document.querySelector('#codecPreferences');
 const errorMsgElement = document.querySelector('span#errorMsg');
@@ -27,7 +30,8 @@ recordButton.addEventListener('click', () => {
     stopRecording();
     recordButton.textContent = 'Start Recording';
     playButton.disabled = false;
-    sendButton.disabled = false;
+    trainButton.disabled = false;
+    classifyButton.disabled = false;
     codecPreferences.disabled = false;
   }
 });
@@ -49,32 +53,14 @@ trainButton.addEventListener('click', () => {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   send_data1(blob);
-  //a.style.display = 'none';
-  //a.href = url;
-  //a.download = 'test.webm';
-  //document.body.appendChild(a);
-  //a.click();
-  //setTimeout(() => {
-  //  document.body.removeChild(a);
-  // window.URL.revokeObjectURL(url);
-  //}, 100);
 });
-
+	
 const classifyButton = document.querySelector('button#classify');
 classifyButton.addEventListener('click', () => {
   const blob = new Blob(recordedBlobs, {type: 'video/webm'});
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   send_data2(blob);
-  //a.style.display = 'none';
-  //a.href = url;
-  //a.download = 'test.webm';
-  //document.body.appendChild(a);
-  //a.click();
-  //setTimeout(() => {
-  //  document.body.removeChild(a);
-  // window.URL.revokeObjectURL(url);
-  //}, 100);
 });
 
 function handleDataAvailable(event) {
@@ -112,7 +98,8 @@ function startRecording() {
   console.log('Created MediaRecorder', mediaRecorder, 'with options', options);
   recordButton.textContent = 'Stop Recording';
   playButton.disabled = true;
-  sendButton.disabled = true;
+  trainButton.disabled = true;
+  classifyButton.disabled = true;
   codecPreferences.disabled = true;
   mediaRecorder.onstop = (event) => {
     console.log('Recorder stopped: ', event);
@@ -168,16 +155,16 @@ document.querySelector('button#start').addEventListener('click', async () => {
   console.log('Using media constraints:', constraints);
   await init(constraints);
 });
-    function send_data1(mlType,img){         
+function send_data1(mlType,img){         
         console.log([mlType,img]);
 	console.log("emitting");
 	socket.emit('train_img', {data:[mlType,img]});
-    };
-    function send_data2(mlType,img){
+};
+function send_data2(mlType,img){
         console.log([mlType,img]);
         console.log("emitting");
         socket.emit('classify_img', {data:[mlType,img]});
-    };
+};
     //captureButton.addEventListener('click', () => {  
       //  var drawImage = context.drawImage(player, 0, 0, canvas.width, canvas.height);
         //var imgData = context.getImageData(0, 0, canvas.width, canvas.width);
@@ -194,7 +181,7 @@ document.querySelector('button#start').addEventListener('click', async () => {
     
     navigator.mediaDevices.getUserMedia(constraints)
     .then((stream) => {
-        // Attach the video stream to the video element and autoplay.
+    	    // Attach the video stream to the video element and autoplay.
         player.srcObject = stream;
     });
     

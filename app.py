@@ -1,25 +1,29 @@
 # Import Modules
 import os
+import json
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 import numpy as np
 import requests
 from datetime import datetime
 import logging
-import Counter
 import base64  # Usedto decode image sent from client
 import cv2
 from collections import Counter
+import time
 #from vision import label_image,extract_text # Helper File
 
 # function query mlflow model directly
 def queryModel(video_path):
-        img_class = []
-        video = cv2.VideoCapture(video_path)
-        video_name = os.path.basename(video_path).split(".")[0]
-        frame_no = 1
-        while video.isOpened():
-            _, frame = video.read()
+    print(video_path)
+    img_class = []
+    video = cv2.VideoCapture(video_path)
+    video_name = os.path.basename(video_path).split(".")[0]
+    frame_no = 1
+    while video.isOpened():
+        _, frame = video.read()
+        try:
+            frame = cv2.resize(frame, (224, 224))
             # pushing every 3rd frame
             if frame_no % 3 == 0:
                 payload = {
@@ -28,7 +32,7 @@ def queryModel(video_path):
                         "name": "metadata-np",
                         "datatype": "INT32",
                         "shape": [224,224,3],
-                        "data": results.flatten().tolist(),
+                        "data": frame.flatten().tolist(),
                         }
                         ]
                 }
@@ -37,17 +41,20 @@ def queryModel(video_path):
                     json=payload
                 )
                 # Append results to empty list
-                img_append(response.text)
+                img_class.append(json.loads(response.text)["outputs"][0]["data"][0])
+        except:
+            print("End of file")
+            break
 
-            time.sleep(0.1)
-            frame_no += 1
-        # Get most frequent classiciation    
-        occurence_count = Counter(img_append)
-        result=occurence_count.most_common(1)[0][0]
-        
-        # Close connecction to video 
-        video.release()
-        return result
+        time.sleep(0.1)
+        frame_no += 1
+    # Get most frequent classiciation    
+    occurence_count = Counter(img_class)
+    result=occurence_count.most_common(1)[0][0]
+
+    # Close connecction to video 
+    video.release()
+    return result
 
 
 # Socket IO Flask App Setup
@@ -97,11 +104,8 @@ def main1(message):
     with open(uri, "wb") as fh:
         fh.write(data)
     os.system("webm -i "+uri+" "+folder+"pic_"+time_formatted+".mp4")
-    os.system("rm "+uri)
-
-    
+    os.system("rm "+uri)    
     # Send data back to the client in the form of a label detected or text extracted
-    emit('my_response', {'data': result})
 
 @socketio.on('classify_img')
 def main2(message):
@@ -122,8 +126,9 @@ def main2(message):
         fh.write(data)
     os.system("webm -i "+uri+" "+folder+"pic_"+time_formatted+".mp4")
     os.system("rm "+uri)
-
-    result=queryModel(folder + "pic_" + time_formated+".mp4")
+    
+    print("starting query")
+    result=queryModel(folder + "pic_" + time_formatted+".mp4")
     # Send data back to the client in the form of a label detected or text extracted
     emit('my_response', {'data': result})
 
