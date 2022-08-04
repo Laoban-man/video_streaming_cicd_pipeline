@@ -2,12 +2,6 @@ import threading
 from confluent_kafka import Consumer, KafkaError, KafkaException
 from consumer_config import config as consumer_config
 from utils import *
-
-import tensorflow as tf
-from tensorflow.keras.applications import ResNet50
-from tensorflow.keras.applications.resnet50 import preprocess_input
-from tensorflow.keras.applications.imagenet_utils import decode_predictions
-
 from pymongo import MongoClient
 
 import cv2
@@ -15,11 +9,10 @@ import numpy as np
 import time
 
 class ConsumerThread:
-    def __init__(self, config, topic, batch_size, model, db, videos_map):
+    def __init__(self, config, topic, batch_size, db, videos_map):
         self.config = config
         self.topic = topic
         self.batch_size = batch_size
-        self.model = model
         self.db = db
         self.videos_map = videos_map
 
@@ -44,6 +37,7 @@ class ConsumerThread:
                     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                     img = cv2.resize(img, (224, 224))
                     msg_array.append(img)
+                    img_array2.append(msg.value())
 
                     # get metadata
                     frame_no = msg.timestamp()[1]
@@ -61,16 +55,11 @@ class ConsumerThread:
                         labels = decode_predictions(predictions)
 
                         self.videos_map = reset_map(self.videos_map)
-                        for metadata, label,image in zip(metadata_array, labels,img_array2):
-                            top_label = label[0][1]
-                            confidence = label[0][2]
-                            confidence = confidence.item()
+                        for metadata,image in zip(metadata_array,img_array2):
                             frame_no, video_name = metadata
                             doc = {
                                 "image":image,
                                 "frame": frame_no,
-                                "label": top_label,
-                                "confidence": confidence
                             }
                             self.videos_map[video_name].append(doc)
 
@@ -110,22 +99,11 @@ if __name__ == "__main__":
 
     topic = ["video-stream"]
 
-    # initialize model
-    model = ResNet50 (
-            include_top = True, 
-            weights = 'imagenet', 
-            input_tensor = None, 
-            input_shape = (224, 224, 3), 
-            pooling = None, 
-            classes = 1000
-            )
-    
-    # connect to mongodb
-    client = MongoClient('mongodb://localhost:27017')
+    client=MongoClient("mongodb://localhost:27017")
     db = client['video-stream-records']
 
-    video_names = ["sixtine", "nicolas", "dagobert"]
+    video_names = ["sample_1", "sample_2", "sample_3"]
     videos_map = create_collections_unique(db, video_names)
     
-    consumer_thread = ConsumerThread(consumer_config, topic, 32, model, db, videos_map)
+    consumer_thread = ConsumerThread(consumer_config, topic, 32, db, videos_map)
     consumer_thread.start(3)
